@@ -38,9 +38,14 @@ FF_CXXFLAGS="$(xargs <<< "$FF_CXXFLAGS")"
 FF_LDFLAGS="$(xargs <<< "$FF_LDFLAGS")"
 FF_LIBS="$(xargs <<< "$FF_LIBS")"
 
+if [[ "$(uname -s)" == CYGWIN* ]]; then
+    MOUNT_POINT="$(cygpath -w $PWD)"
+else
+    MOUNT_POINT="$PWD"
+fi
 TESTFILE="uidtestfile"
 rm -f "$TESTFILE"
-docker run --rm -v "$PWD:/uidtestdir" "$IMAGE" /usr/bin/touch "/uidtestdir/$TESTFILE"
+docker run --rm -v "$MOUNT_POINT:/uidtestdir" "$IMAGE" /usr/bin/touch "/uidtestdir/$TESTFILE"
 DOCKERUID="$(stat -c "%u" "$TESTFILE")"
 rm -f "$TESTFILE"
 [[ "$DOCKERUID" != "$(id -u)" ]] && UIDARGS=( -u "$(id -u):$(id -g)" ) || UIDARGS=()
@@ -48,7 +53,7 @@ rm -f "$TESTFILE"
 rm -rf ffbuild
 mkdir ffbuild
 
-docker run --rm -i "${UIDARGS[@]}" -v $PWD/ffbuild:/ffbuild "$IMAGE" bash -s <<EOF
+docker run --rm -i "${UIDARGS[@]}" -v $MOUNT_POINT/ffbuild:/ffbuild "$IMAGE" bash -s <<EOF
     set -xe
     cd /ffbuild
     rm -rf ffmpeg prefix
@@ -63,7 +68,7 @@ docker run --rm -i "${UIDARGS[@]}" -v $PWD/ffbuild:/ffbuild "$IMAGE" bash -s <<E
 EOF
 
 mkdir -p artifacts
-ARTIFACTS_PATH="$PWD/artifacts"
+ARTIFACTS_PATH="$MOUNT_POINT/artifacts"
 BUILD_NAME="ffmpeg-$(./ffbuild/ffmpeg/ffbuild/version.sh ffbuild/ffmpeg)-${TARGET}-${VARIANT}${ADDINS_STR:+-}${ADDINS_STR}"
 
 mkdir -p "ffbuild/pkgroot/$BUILD_NAME"
